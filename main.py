@@ -21,8 +21,10 @@ def main() -> None:
         if not user_input:
             continue
 
-        response = orchestrator.process(user_input)
-        print(f"TOM: {response}")
+        print("TOM: ", end="", flush=True)
+        for chunk in orchestrator.stream(user_input):
+            print(chunk, end="", flush=True)
+        print()
 
 
 if __name__ == "__main__":

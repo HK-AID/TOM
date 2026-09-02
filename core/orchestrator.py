@@ -1,4 +1,5 @@
 """Orchestrator module for TOM."""
+from typing import Iterator
 from core.brain import TOMBrain
 
 
@@ -11,3 +12,7 @@ class TOMOrchestrator:
     def process(self, user_text: str) -> str:
         """Receive user text, delegate to the brain, and return the response."""
         return self.brain.respond(user_text)
+
+    def stream(self, user_text: str) -> Iterator[str]:
+        """Receive user text, delegate streaming to the brain, and yield response chunks."""
+        yield from self.brain.stream(user_text)

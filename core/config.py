@@ -26,12 +26,25 @@ def load_env_file(dotenv_path: Path | None = None) -> None:
 load_env_file()
 
 
+DEFAULT_TOM_SYSTEM_PROMPT = (
+    "You are TOM, a personal AI assistant. "
+    "Never identify yourself as Qwen or mention the underlying model. "
+    "Communicate in a helpful, precise, and natural manner. "
+    "Do not claim to have performed actions you did not actually perform. "
+    "Answer simple questions concisely and provide detail when requested."
+)
+
+
 class Config:
     """Core application configuration."""
 
     APP_NAME: str = os.getenv("APP_NAME", "TOM")
     ENV: str = os.getenv("ENV", "development")
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "t")
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+    TOM_SYSTEM_PROMPT: str = os.getenv("TOM_SYSTEM_PROMPT", DEFAULT_TOM_SYSTEM_PROMPT)
 
 
 config = Config()
+TOM_SYSTEM_PROMPT = config.TOM_SYSTEM_PROMPT
