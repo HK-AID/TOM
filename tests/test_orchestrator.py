@@ -95,13 +95,13 @@ class TestTOMOrchestrator(unittest.TestCase):
         """Normal messages must be routed to TOMBrain.stream()."""
         chunks = list(self.orchestrator.stream("What is an array in Java?"))
         self.assertEqual("".join(chunks), "Mock brain stream")
-        self.mock_brain.stream.assert_called_once_with("What is an array in Java?")
+        self.mock_brain.stream.assert_called_once_with("What is an array in Java?", history=[])
 
     def test_normal_message_routes_to_brain_process(self):
         """Normal messages in process() must route to TOMBrain.respond()."""
         response = self.orchestrator.process("What is an array in Java?")
         self.assertEqual(response, "Mock brain response")
-        self.mock_brain.respond.assert_called_once_with("What is an array in Java?")
+        self.mock_brain.respond.assert_called_once_with("What is an array in Java?", history=[])
 
     def test_stream_handles_memory_commands(self):
         """Verify orchestrator.stream() yields memory responses for interactive loop."""

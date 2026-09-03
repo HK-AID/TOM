@@ -15,8 +15,29 @@ class TOMBrain:
         self.model = config.OLLAMA_MODEL
         self.system_prompt = config.TOM_SYSTEM_PROMPT
 
-    def respond(self, text: str) -> str:
-        """Process user input text and return a response from Ollama."""
+    def _build_messages(
+        self, text: str, history: list[dict[str, str]] | None = None
+    ) -> list[dict[str, str]]:
+        """Construct the message list for Ollama including system prompt, history, and current user text."""
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": self.system_prompt}
+        ]
+        if history:
+            for msg in history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # Ensure the current user message is included without duplication
+        if not (
+            len(messages) > 1
+            and messages[-1].get("role") == "user"
+            and messages[-1].get("content") == text
+        ):
+            messages.append({"role": "user", "content": text})
+
+        return messages
+
+    def respond(self, text: str, history: list[dict[str, str]] | None = None) -> str:
+        """Process user input text with conversation history and return a response from Ollama."""
         cleaned_text = text.strip()
         if not cleaned_text:
             return "I am listening."
@@ -24,10 +45,7 @@ class TOMBrain:
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": cleaned_text},
-            ],
+            "messages": self._build_messages(cleaned_text, history),
             "stream": False,
         }
 
@@ -51,8 +69,8 @@ class TOMBrain:
         except Exception as e:
             return f"Unexpected error communicating with Ollama: {e}"
 
-    def stream(self, text: str) -> Iterator[str]:
-        """Process user input text and stream response chunks from Ollama."""
+    def stream(self, text: str, history: list[dict[str, str]] | None = None) -> Iterator[str]:
+        """Process user input text with conversation history and stream response chunks from Ollama."""
         cleaned_text = text.strip()
         if not cleaned_text:
             yield "I am listening."
@@ -61,10 +79,7 @@ class TOMBrain:
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": cleaned_text},
-            ],
+            "messages": self._build_messages(cleaned_text, history),
             "stream": True,
         }
 

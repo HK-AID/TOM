@@ -1,6 +1,7 @@
 """Orchestrator module for TOM."""
 from typing import Iterator
 from core.brain import TOMBrain
+from core.conversation import ConversationManager
 from memory.memory_manager import MemoryManager
 
 
@@ -11,9 +12,11 @@ class TOMOrchestrator:
         self,
         brain: TOMBrain | None = None,
         memory: MemoryManager | None = None,
+        conversation: ConversationManager | None = None,
     ) -> None:
         self.brain = brain or TOMBrain()
         self.memory = memory or MemoryManager()
+        self.conversation = conversation or ConversationManager()
 
     def _handle_memory_command(self, user_text: str) -> str | None:
         """Deterministically parse and handle explicit memory commands."""
@@ -90,16 +93,36 @@ class TOMOrchestrator:
         return f"I couldn't find any memory matching '{target}'."
 
     def process(self, user_text: str) -> str:
-        """Receive user text, check for memory commands, or delegate to brain."""
+        """Receive user text, check for memory commands, or delegate to brain with context."""
         memory_response = self._handle_memory_command(user_text)
         if memory_response is not None:
             return memory_response
-        return self.brain.respond(user_text)
+
+        cleaned_text = user_text.strip()
+        history = self.conversation.get_messages()
+        response = self.brain.respond(cleaned_text, history=history)
+
+        if cleaned_text and response:
+            self.conversation.add_user_message(cleaned_text)
+            self.conversation.add_assistant_message(response)
+
+        return response
 
     def stream(self, user_text: str) -> Iterator[str]:
-        """Receive user text, check for memory commands, or delegate streaming to brain."""
+        """Receive user text, check for memory commands, or delegate streaming to brain with context."""
         memory_response = self._handle_memory_command(user_text)
         if memory_response is not None:
             yield memory_response
             return
-        yield from self.brain.stream(user_text)
+
+        cleaned_text = user_text.strip()
+        history = self.conversation.get_messages()
+        collected_chunks = []
+        for chunk in self.brain.stream(cleaned_text, history=history):
+            collected_chunks.append(chunk)
+            yield chunk
+
+        full_response = "".join(collected_chunks)
+        if cleaned_text and full_response:
+            self.conversation.add_user_message(cleaned_text)
+            self.conversation.add_assistant_message(full_response)

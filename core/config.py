@@ -44,6 +44,7 @@ class Config:
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
     TOM_SYSTEM_PROMPT: str = os.getenv("TOM_SYSTEM_PROMPT", DEFAULT_TOM_SYSTEM_PROMPT)
+    MAX_CONVERSATION_MESSAGES: int = int(os.getenv("MAX_CONVERSATION_MESSAGES", "20"))
 
 
 config = Config()
