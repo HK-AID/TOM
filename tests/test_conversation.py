@@ -143,7 +143,7 @@ class TestOrchestratorConversationContext(unittest.TestCase):
         # Turn 1
         resp1 = self.orchestrator.process("My name is Bob")
         self.assertEqual(resp1, "Nice to meet you.")
-        self.mock_brain.respond.assert_called_with("My name is Bob", history=[])
+        self.mock_brain.respond.assert_called_with("My name is Bob", history=[], memories=[])
 
         # Turn 2
         resp2 = self.orchestrator.process("What is my name?")
@@ -152,7 +152,7 @@ class TestOrchestratorConversationContext(unittest.TestCase):
             {"role": "user", "content": "My name is Bob"},
             {"role": "assistant", "content": "Nice to meet you."},
         ]
-        self.mock_brain.respond.assert_called_with("What is my name?", history=expected_history)
+        self.mock_brain.respond.assert_called_with("What is my name?", history=expected_history, memories=[])
 
         # Verify conversation state
         messages = self.orchestrator.conversation.get_messages()
@@ -168,7 +168,7 @@ class TestOrchestratorConversationContext(unittest.TestCase):
         # Turn 1 streaming
         chunks1 = list(self.orchestrator.stream("Hello"))
         self.assertEqual("".join(chunks1), "Hello there!")
-        self.mock_brain.stream.assert_called_with("Hello", history=[])
+        self.mock_brain.stream.assert_called_with("Hello", history=[], memories=[])
 
         # Turn 2 streaming receives Turn 1 history
         chunks2 = list(self.orchestrator.stream("How are you?"))
@@ -177,7 +177,7 @@ class TestOrchestratorConversationContext(unittest.TestCase):
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hello there!"},
         ]
-        self.mock_brain.stream.assert_called_with("How are you?", history=expected_history)
+        self.mock_brain.stream.assert_called_with("How are you?", history=expected_history, memories=[])
 
         # Verify conversation state
         messages = self.orchestrator.conversation.get_messages()

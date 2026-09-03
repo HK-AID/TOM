@@ -93,14 +93,15 @@ class TOMOrchestrator:
         return f"I couldn't find any memory matching '{target}'."
 
     def process(self, user_text: str) -> str:
-        """Receive user text, check for memory commands, or delegate to brain with context."""
+        """Receive user text, check for memory commands, or delegate to brain with context and retrieved memories."""
         memory_response = self._handle_memory_command(user_text)
         if memory_response is not None:
             return memory_response
 
         cleaned_text = user_text.strip()
         history = self.conversation.get_messages()
-        response = self.brain.respond(cleaned_text, history=history)
+        relevant_memories = self.memory.search(cleaned_text, limit=5)
+        response = self.brain.respond(cleaned_text, history=history, memories=relevant_memories)
 
         if cleaned_text and response:
             self.conversation.add_user_message(cleaned_text)
@@ -109,7 +110,7 @@ class TOMOrchestrator:
         return response
 
     def stream(self, user_text: str) -> Iterator[str]:
-        """Receive user text, check for memory commands, or delegate streaming to brain with context."""
+        """Receive user text, check for memory commands, or delegate streaming to brain with context and retrieved memories."""
         memory_response = self._handle_memory_command(user_text)
         if memory_response is not None:
             yield memory_response
@@ -117,8 +118,9 @@ class TOMOrchestrator:
 
         cleaned_text = user_text.strip()
         history = self.conversation.get_messages()
+        relevant_memories = self.memory.search(cleaned_text, limit=5)
         collected_chunks = []
-        for chunk in self.brain.stream(cleaned_text, history=history):
+        for chunk in self.brain.stream(cleaned_text, history=history, memories=relevant_memories):
             collected_chunks.append(chunk)
             yield chunk
 

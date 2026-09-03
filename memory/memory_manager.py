@@ -124,3 +124,100 @@ class MemoryManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM memories")
             conn.commit()
+
+    def search(self, query: str, limit: int = 5) -> list[dict]:
+        """Search key, value, and category using SQLite parameterized LIKE queries.
+
+        Returns matching memories ordered by relevance, then updated_at.
+        """
+        cleaned = query.strip()
+        if not cleaned or limit < 1:
+            return []
+
+        import re
+
+        normalized_phrase = cleaned.rstrip(".!?").strip().lower()
+        stopwords = {
+            "what", "is", "are", "was", "were", "the", "a", "an", "and", "or",
+            "do", "does", "did", "you", "your", "my", "me", "i", "to", "in",
+            "on", "at", "of", "for", "with", "about", "tell", "know", "can",
+        }
+        all_words = [w.lower() for w in re.findall(r"\b\w+\b", cleaned)]
+        keywords = [w for w in all_words if len(w) >= 3 and w not in stopwords]
+
+        terms = []
+        if normalized_phrase:
+            terms.append(normalized_phrase)
+        for kw in keywords:
+            if kw not in terms:
+                terms.append(kw)
+
+        if not terms:
+            terms = [cleaned.lower()]
+
+        where_clauses = []
+        where_params = []
+
+        relevance_cases = []
+        relevance_params = []
+
+        primary = terms[0]
+        primary_pattern = f"%{primary}%"
+
+        relevance_cases.append("WHEN LOWER(key) = ? THEN 100")
+        relevance_params.append(primary)
+        relevance_cases.append("WHEN LOWER(value) = ? THEN 90")
+        relevance_params.append(primary)
+        relevance_cases.append("WHEN LOWER(category) = ? THEN 80")
+        relevance_params.append(primary)
+
+        relevance_cases.append("WHEN LOWER(key) LIKE ? THEN 60")
+        relevance_params.append(primary_pattern)
+        relevance_cases.append("WHEN LOWER(value) LIKE ? THEN 50")
+        relevance_params.append(primary_pattern)
+        relevance_cases.append("WHEN LOWER(category) LIKE ? THEN 40")
+        relevance_params.append(primary_pattern)
+
+        for kw in terms[1:]:
+            kw_pattern = f"%{kw}%"
+            relevance_cases.append("WHEN LOWER(key) LIKE ? THEN 25")
+            relevance_params.append(kw_pattern)
+            relevance_cases.append("WHEN LOWER(value) LIKE ? THEN 20")
+            relevance_params.append(kw_pattern)
+            relevance_cases.append("WHEN LOWER(category) LIKE ? THEN 15")
+            relevance_params.append(kw_pattern)
+
+        for term in terms:
+            term_pattern = f"%{term}%"
+            where_clauses.append("(LOWER(key) LIKE ? OR LOWER(value) LIKE ? OR LOWER(category) LIKE ?)")
+            where_params.extend([term_pattern, term_pattern, term_pattern])
+
+        relevance_sql = "CASE " + " ".join(relevance_cases) + " ELSE 10 END"
+        where_sql = " OR ".join(where_clauses)
+
+        query_sql = f"""
+            SELECT id, key, value, category, created_at, updated_at,
+                   ({relevance_sql}) AS relevance
+            FROM memories
+            WHERE {where_sql}
+            ORDER BY relevance DESC, updated_at DESC
+            LIMIT ?
+        """
+        all_params = tuple(relevance_params + where_params + [limit])
+
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(query_sql, all_params)
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": row["id"],
+                    "key": row["key"],
+                    "value": row["value"],
+                    "category": row["category"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+                for row in rows
+            ]

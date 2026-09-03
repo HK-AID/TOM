@@ -116,6 +116,54 @@ class TestMemoryManager(unittest.TestCase):
         self.assertEqual(DEFAULT_DB_PATH.name, "tom_memory.db")
         self.assertEqual(DEFAULT_DB_PATH.parent.name, "memory")
 
+    def test_memory_search_matching_key_value_category(self):
+        """Verify search finds memories matching on key, value, or category."""
+        self.memory.remember("python_version", "3.10", category="environment")
+        self.memory.remember("favorite_hobby", "learning python", category="personal")
+        self.memory.remember("editor_choice", "VS Code", category="python")
+
+        results = self.memory.search("python")
+        self.assertEqual(len(results), 3)
+
+        keys = [r["key"] for r in results]
+        self.assertIn("python_version", keys)   # key match
+        self.assertIn("favorite_hobby", keys)   # value match
+        self.assertIn("editor_choice", keys)    # category match
+
+    def test_memory_search_result_limit(self):
+        """Verify search respects the limit parameter."""
+        for i in range(10):
+            self.memory.remember(f"note_{i}", f"important project detail {i}")
+
+        results_default = self.memory.search("project", limit=5)
+        self.assertEqual(len(results_default), 5)
+
+        results_custom = self.memory.search("project", limit=3)
+        self.assertEqual(len(results_custom), 3)
+
+    def test_memory_search_relevance_ordering(self):
+        """Verify exact matches on key rank above partial matches in value or category."""
+        self.memory.remember("general_notes", "contains python in value", category="general")
+        self.memory.remember("python", "exact key match", category="dev")
+
+        results = self.memory.search("python")
+        self.assertEqual(len(results), 2)
+        # Exact key match should rank first
+        self.assertEqual(results[0]["key"], "python")
+        self.assertEqual(results[1]["key"], "general_notes")
+
+    def test_memory_search_no_match(self):
+        """Verify searching for non-matching query returns empty list."""
+        self.memory.remember("user_city", "San Francisco")
+        results = self.memory.search("astronomy")
+        self.assertEqual(results, [])
+
+    def test_memory_search_empty_query(self):
+        """Verify whitespace or empty query returns empty list."""
+        self.memory.remember("user_city", "San Francisco")
+        self.assertEqual(self.memory.search("   "), [])
+        self.assertEqual(self.memory.search(""), [])
+
 
 if __name__ == "__main__":
     unittest.main()

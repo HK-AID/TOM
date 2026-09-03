@@ -95,13 +95,13 @@ class TestTOMOrchestrator(unittest.TestCase):
         """Normal messages must be routed to TOMBrain.stream()."""
         chunks = list(self.orchestrator.stream("What is an array in Java?"))
         self.assertEqual("".join(chunks), "Mock brain stream")
-        self.mock_brain.stream.assert_called_once_with("What is an array in Java?", history=[])
+        self.mock_brain.stream.assert_called_once_with("What is an array in Java?", history=[], memories=[])
 
     def test_normal_message_routes_to_brain_process(self):
         """Normal messages in process() must route to TOMBrain.respond()."""
         response = self.orchestrator.process("What is an array in Java?")
         self.assertEqual(response, "Mock brain response")
-        self.mock_brain.respond.assert_called_once_with("What is an array in Java?", history=[])
+        self.mock_brain.respond.assert_called_once_with("What is an array in Java?", history=[], memories=[])
 
     def test_stream_handles_memory_commands(self):
         """Verify orchestrator.stream() yields memory responses for interactive loop."""
@@ -113,6 +113,51 @@ class TestTOMOrchestrator(unittest.TestCase):
         recall_chunks = list(self.orchestrator.stream("what do you remember?"))
         recall_response = "".join(recall_chunks)
         self.assertIn("developer", recall_response)
+        self.mock_brain.stream.assert_not_called()
+
+    def test_relevant_memory_injection(self):
+        """Verify relevant memories are retrieved and passed to brain.respond."""
+        self.memory.remember("favorite_framework", "FastAPI", category="preferences")
+        self.memory.remember("unrelated_fact", "The sky is blue", category="general")
+
+        self.orchestrator.process("What is my favorite framework?")
+
+        # Check call arguments to mock_brain.respond
+        call_kwargs = self.mock_brain.respond.call_args[1]
+        injected = call_kwargs.get("memories", [])
+        self.assertEqual(len(injected), 1)
+        self.assertEqual(injected[0]["key"], "favorite_framework")
+        self.assertEqual(injected[0]["value"], "FastAPI")
+
+    def test_no_match_memory_injection(self):
+        """Verify unrelated memories are NOT injected when no memories match the query."""
+        self.memory.remember("favorite_framework", "FastAPI", category="preferences")
+
+        self.orchestrator.process("What is the speed of light?")
+
+        call_kwargs = self.mock_brain.respond.call_args[1]
+        injected = call_kwargs.get("memories", [])
+        self.assertEqual(injected, [])
+
+    def test_streaming_with_injected_memory(self):
+        """Verify relevant memories are retrieved and passed to brain.stream."""
+        self.memory.remember("home_city", "Berlin", category="profile")
+
+        chunks = list(self.orchestrator.stream("Tell me about my home city"))
+        self.assertEqual("".join(chunks), "Mock brain stream")
+
+        call_kwargs = self.mock_brain.stream.call_args[1]
+        injected = call_kwargs.get("memories", [])
+        self.assertEqual(len(injected), 1)
+        self.assertEqual(injected[0]["key"], "home_city")
+        self.assertEqual(injected[0]["value"], "Berlin")
+
+    def test_memory_commands_remain_deterministic_without_llm(self):
+        """Verify explicit memory commands do not invoke search injection or LLM calls."""
+        resp = self.orchestrator.process("remember that dog_name is Buddy")
+        self.assertIn("Buddy", resp)
+
+        self.mock_brain.respond.assert_not_called()
         self.mock_brain.stream.assert_not_called()
 
 

@@ -125,6 +125,49 @@ class TestTOMBrain(unittest.TestCase):
         self.assertIn("TOM", full_response)
         self.assertNotIn("Qwen", full_response)
 
+    def test_build_messages_with_memories(self):
+        """Verify long-term memory is labeled and injected as reference context."""
+        brain = TOMBrain()
+        memories = [
+            {"key": "pet_name", "value": "Luna"},
+            {"key": "diet", "value": "vegetarian"},
+        ]
+        history = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there!"},
+        ]
+        messages = brain._build_messages("What does my pet eat?", history=history, memories=memories)
+
+        self.assertEqual(len(messages), 5)
+        self.assertEqual(messages[0]["role"], "system")
+        self.assertEqual(messages[0]["content"], config.TOM_SYSTEM_PROMPT)
+
+        # Long-term memory context message
+        self.assertEqual(messages[1]["role"], "system")
+        self.assertIn("Long-term memory:", messages[1]["content"])
+        self.assertIn("Luna", messages[1]["content"])
+        self.assertIn("vegetarian", messages[1]["content"])
+
+        # History follows
+        self.assertEqual(messages[2], {"role": "user", "content": "Hello"})
+        self.assertEqual(messages[3], {"role": "assistant", "content": "Hi there!"})
+
+        # Current user query
+        self.assertEqual(messages[4], {"role": "user", "content": "What does my pet eat?"})
+
+    def test_build_messages_without_memories(self):
+        """Verify no memory message is injected when memories is empty or None."""
+        brain = TOMBrain()
+        messages_none = brain._build_messages("Hi", memories=None)
+        self.assertEqual(len(messages_none), 2)
+        self.assertEqual(messages_none[0]["role"], "system")
+        self.assertEqual(messages_none[1]["role"], "user")
+
+        messages_empty = brain._build_messages("Hi", memories=[])
+        self.assertEqual(len(messages_empty), 2)
+        self.assertEqual(messages_empty[0]["role"], "system")
+        self.assertEqual(messages_empty[1]["role"], "user")
+
 
 if __name__ == "__main__":
     unittest.main()
