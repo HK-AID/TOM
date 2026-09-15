@@ -1,7 +1,6 @@
 """TOM Tools System Foundation.
 
-Provides the base Tool abstraction and ToolRegistry for registering and
-managing tools within TOM.
+Provides the base Tool abstraction, ToolRegistry, and built-in tools.
 """
 from tools.base import RiskLevel, Tool
 from tools.registry import (
@@ -11,6 +10,7 @@ from tools.registry import (
     ToolRegistry,
     default_registry,
 )
+from tools.system_info import SystemInfoTool, system_info_tool
 
 __all__ = [
     "Tool",
@@ -20,4 +20,6 @@ __all__ = [
     "ToolError",
     "DuplicateToolError",
     "ToolNotFoundError",
+    "SystemInfoTool",
+    "system_info_tool",
 ]
